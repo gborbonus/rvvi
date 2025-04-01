@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# Default backup directory
+BACKUP_DIR="/var/rvvi_backup"
+
+# Source configuration file if it exists
+CONFIG_FILE="/etc/default/rvvi"
+if [ -f "$CONFIG_FILE" ]; then
+    . "$CONFIG_FILE"
+fi
+
+# Function to list all backups
+list_all_backups() {
+    if [ -z "$(ls -A "$BACKUP_DIR")" ]; then
+        echo "No backups found in $BACKUP_DIR"
+        exit 0
+    fi
+    ls -l "$BACKUP_DIR"/* | awk '{print $9 " (Date: " $6 " " $7 " " $8 ")"}'
+}
+
+# Function to list backups for a specific file
+list_file_backups() {
+    local file_pattern="_$(realpath "$1" | tr '/' '_')_*"
+    local backups=("$BACKUP_DIR/$file_pattern")
+    if [ ! -e "${backups[0]}" ]; then
+        echo "No backups found for $1"
+        exit 0
+    fi
+    echo "Backups for $1:"
+    for backup in "${backups[@]}"; do
+        local timestamp=$(basename "$backup" | grep -oE '[0-9]{8}_[0-9]{6}$')
+        echo "- Version: $timestamp"
+    done
+}
+
+# Function to restore a backup and open in vi
+restore_file() {
+    local file="$1"
+    local version="$2"
+    local file_pattern="_$(realpath "$file" | tr '/' '_')_*"
+    local backups=("$BACKUP_DIR/$file_pattern")
+
+    # If no backups exist
+    if [ ! -e "${backups[0]}" ]; then
+        echo "No backups found for $file"
+        exit 1
+    fi
+
+    # If only one backup and no version specified
+    if [ ${#backups[@]} -eq 1 ] && [ -z "$version" ]; then
+        cp -p "${backups[0]}" "$file" || { echo "Failed to restore"; exit 1; }
+        echo "Restored $file from ${backups[0]}"
+        vi "$file"  # Open in vi after restore
+        exit 0
+    fi
+
+    # If version is specified
+    if [ -n "$version" ]; then
+        local backup_file="${BACKUP_DIR}/_$(realpath "$file" | tr '/' '_')_${version}"
+        if [ -f "$backup_file" ]; then
+            cp -p "$backup_file" "$file" || { echo "Failed to restore"; exit 1; }
+            echo "Restored $file from $backup_file"
+            vi "$file"  # Open in vi after restore
+        else
+            echo "Error: Version $version not found for $file"
+            list_file_backups "$file"
+            exit 1
+        fi
+    else
+        # Multiple backups, no version specified
+        echo "Multiple backups found for $file. Please specify a version:"
+        list_file_backups "$file"
+        exit 1
+    fi
+}
+
+# Help message
+show_help() {
+    echo "Usage: $0 [--list] <filename> [version]"
+    echo "  --list: List all backups"
+    echo "  <filename>: List or restore backups for a file"
+    echo "  [version]: Specify a version (e.g., 20250401_123456) to restore"
+    echo "Restore Vi (rvi) - Restores a file backup and opens it in vi."
+    echo "Default backup directory: $BACKUP_DIR (configurable via $CONFIG_FILE)"
+    exit 0
+}
+
+# Check for help flag
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help
+fi
+
+# Main logic
+case "$1" in
+    "--list")
+        list_all_backups
+        ;;
+    "")
+        echo "Error: No arguments provided"
+        show_help
+        ;;
+    *)
+        if [ -n "$2" ]; then
+            restore_file "$1" "$2"
+        else
+            restore_file "$1"
+        fi
+        ;;
+esac
