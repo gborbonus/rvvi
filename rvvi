@@ -1,0 +1,5 @@
+# /etc/default/rvvi
+# Configuration file for vvi and rvi scripts
+
+# Uncomment and set to override the default backup directory
+# BACKUP_DIR="/custom/backup/path"
