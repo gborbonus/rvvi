@@ -14,7 +14,7 @@ RVVI provides two scripts, `vvi` and `rvi`, to manage file versions with backups
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone <repo-url>
+   git clone [<repo-url>](https://github.com/gborbonus/rvvi.git)
    cd rvvi
    ```
 2. Run the install script:
@@ -52,5 +52,4 @@ Backups are stored in `/var/rvvi_backup` (or configured directory) as:
 ## Help
 Run `vvi --help` or `rvi --help` for usage details.
 
-## License
-MIT License (or your preferred license).
+
